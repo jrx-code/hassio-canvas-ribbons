@@ -1,6 +1,6 @@
 # Canvas Ribbons Background for Home Assistant
 
-**License:** MIT | **HACS:** Custom | **HA:** 2024.1+
+**License:** MIT | **HACS:** Default | **HA:** 2024.1+
 
 Animated canvas ribbon background for Home Assistant dashboards. Adds smooth, flowing ribbon animations behind your HA interface with full GUI configuration.
 
@@ -45,13 +45,14 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 
 ### HACS (recommended)
 
-1. Open HACS → Frontend → **Custom repositories**
-2. Add this repository URL, category: **Lovelace**
-3. Install **Canvas Ribbons Background**
-4. Add resource in **Settings → Dashboards → Resources**:
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jrx-code&repository=hassio-canvas-ribbons&category=plugin)
+
+1. Open HACS and search for **Canvas Ribbons Background** (it is in the HACS default store, no custom repository needed)
+2. Download it
+3. Add resource in **Settings → Dashboards → Resources**:
    - URL: `/hacsfiles/hassio-canvas-ribbons/ha-canvas-ribbons.js`
    - Type: JavaScript Module
-5. Refresh browser (**Ctrl+Shift+R**)
+4. Refresh browser (**Ctrl+Shift+R**)
 
 ### Moving from ha-canvas-ribbons
 

@@ -2,7 +2,7 @@
 // https://github.com/jrx-code/hassio-canvas-ribbons
 // Based on Boris Šehovac's CodePen (https://codepen.io/bsehovac/pen/LQVzxJ)
 
-const VERSION = "1.11.1";
+const VERSION = "1.12.0";
 
 (function () {
   "use strict";
@@ -17,7 +17,6 @@ const VERSION = "1.11.1";
     en: {
       title: "Canvas Ribbons",
       enablePanel: "Enabled on this panel",
-      refreshHint: "Refresh page (F5) to apply",
       reset: "Reset",
       waves: "Waves",
       trailWidth: "Trail width",
@@ -38,7 +37,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "High",
       perfLow: "Low (Firefox-friendly)",
-      perfReloadHint: "Reload page to apply performance mode",
       sidebarAlpha: "Sidebar alpha",
       preset: "Preset",
       presetCustom: "Custom",
@@ -60,7 +58,6 @@ const VERSION = "1.11.1";
     pl: {
       title: "Canvas Ribbons",
       enablePanel: "Włączone na tym panelu",
-      refreshHint: "Odśwież stronę (F5) aby zastosować",
       reset: "Reset",
       waves: "Wstęgi",
       trailWidth: "Dług. śladu",
@@ -81,7 +78,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "Wysoka",
       perfLow: "Niska (Firefox)",
-      perfReloadHint: "Odśwież stronę, aby zastosować tryb wydajności",
       sidebarAlpha: "Sidebar alfa",
       preset: "Preset",
       presetCustom: "Własny",
@@ -103,7 +99,6 @@ const VERSION = "1.11.1";
     de: {
       title: "Canvas Ribbons",
       enablePanel: "Auf diesem Panel aktiviert",
-      refreshHint: "Seite neu laden (F5) zum Anwenden",
       reset: "Zurücksetzen",
       waves: "Wellen",
       trailWidth: "Spurlänge",
@@ -124,7 +119,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "Hoch",
       perfLow: "Niedrig (Firefox)",
-      perfReloadHint: "Seite neu laden, um den Leistungsmodus anzuwenden",
       sidebarAlpha: "Sidebar-Alpha",
       preset: "Vorlage",
       presetCustom: "Eigene",
@@ -146,7 +140,6 @@ const VERSION = "1.11.1";
     es: {
       title: "Canvas Ribbons",
       enablePanel: "Activado en este panel",
-      refreshHint: "Actualizar página (F5) para aplicar",
       reset: "Restablecer",
       waves: "Ondas",
       trailWidth: "Longitud estela",
@@ -167,7 +160,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "Alto",
       perfLow: "Bajo (Firefox)",
-      perfReloadHint: "Recarga la página para aplicar el modo de rendimiento",
       sidebarAlpha: "Sidebar alfa",
       preset: "Preajuste",
       presetCustom: "Personal.",
@@ -189,7 +181,6 @@ const VERSION = "1.11.1";
     ca: {
       title: "Canvas Ribbons",
       enablePanel: "Activat en aquest panell",
-      refreshHint: "Actualitzar pàgina (F5) per aplicar",
       reset: "Restablir",
       waves: "Ones",
       trailWidth: "Longitut estel·la",
@@ -210,7 +201,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "Alt",
       perfLow: "Baix (Firefox)",
-      perfReloadHint: "Recarrega la pàgina per aplicar el mode de rendiment",
       sidebarAlpha: "Barra lateral alfa",
       preset: "Preajust",
       presetCustom: "Personal.",
@@ -232,7 +222,6 @@ const VERSION = "1.11.1";
     cs: {
       title: "Canvas Ribbons",
       enablePanel: "Povoleno na tomto panelu",
-      refreshHint: "Obnovte stránku (F5) pro použití",
       reset: "Obnovit",
       waves: "Vlny",
       trailWidth: "Délka stopy",
@@ -253,7 +242,6 @@ const VERSION = "1.11.1";
       perfAuto: "Auto",
       perfHigh: "Vysoký",
       perfLow: "Nízký (Firefox)",
-      perfReloadHint: "Pro použití režimu výkonu obnovte stránku",
       sidebarAlpha: "Sidebar alfa",
       preset: "Předvolba",
       presetCustom: "Vlastní",
@@ -353,15 +341,23 @@ const VERSION = "1.11.1";
 
   class Wave {
     constructor(r) {
-      const [lo, hi] = r.options.speed;
       this.ribbons = r;
       this.lines = [];
       this.angle = [rnd(TAU), rnd(TAU), rnd(TAU), rnd(TAU)];
-      this.speed = [rnd(lo, hi) * rndSign(), rnd(lo, hi) * rndSign(), rnd(lo, hi) * rndSign(), rnd(lo, hi) * rndSign()];
+      // Each angle keeps its place in the speed range and its direction, so a
+      // new range from the GUI rescales the running wave instead of needing a reload.
+      this.mix = [rnd(1), rnd(1), rnd(1), rnd(1)];
+      this.sign = [rndSign(), rndSign(), rndSign(), rndSign()];
+      this.setSpeed(r.options.speed);
+    }
+    setSpeed(range) {
+      const lo = range[0], hi = range[1];
+      this.speed = this.mix.map((m, i) => (lo + m * (hi - lo)) * this.sign[i]);
     }
     update() {
       this.lines.push(new Line(this, this.ribbons.color));
-      if (this.lines.length > this.ribbons.options.width) this.lines.shift();
+      // while, not if: a shorter trail from the GUI takes effect at once
+      while (this.lines.length > this.ribbons.options.width) this.lines.shift();
     }
     draw(ctx) {
       const r = this.ribbons;
@@ -560,7 +556,7 @@ const VERSION = "1.11.1";
     if (panel) { panel.style.display = panel.style.display === "none" ? "flex" : "none"; return; }
 
     var sliders = [
-      { key: "waves",        label: T.waves,        min: 1,     max: 8,     step: 1,     val: opts.waves,        restart: true },
+      { key: "waves",        label: T.waves,        min: 1,     max: 8,     step: 1,     val: opts.waves         },
       { key: "width",        label: T.trailWidth,    min: 20,    max: 300,   step: 10,    val: opts.width         },
       { key: "rotation",     label: T.rotation,      min: 0,     max: 360,   step: 5,     val: opts.rotation      },
       { key: "amplitude",    label: T.amplitude,     min: 0.1,   max: 2.0,   step: 0.1,   val: opts.amplitude     },
@@ -801,16 +797,6 @@ const VERSION = "1.11.1";
         headerAlpha: opts.headerAlpha, sidebarAlpha: opts.sidebarAlpha,
           themeMode: opts.themeMode, performanceMode: opts.performanceMode,
       });
-
-      // Show restart hint for waves change
-      var hint = document.getElementById("ribbon-restart-hint");
-      if (!hint) {
-        hint = document.createElement("div");
-        hint.id = "ribbon-restart-hint";
-        hint.style.cssText = "color:#f90;font-size:11px;text-align:center;padding:2px 0;";
-        hint.textContent = T.refreshHint;
-        panel.appendChild(hint);
-      }
       applyingPreset = false;
     }
 
@@ -842,7 +828,7 @@ const VERSION = "1.11.1";
       });
       sel.onchange = function () {
         opts[key] = this.value;
-        if (key === "themeMode") updateStyle();
+        if (key === "themeMode") { updateStyle(); syncAlphaRows(); }
         saveConfig({
           waves: opts.waves, width: opts.width, rotation: opts.rotation,
           amplitude: opts.amplitude, speed: [opts.speed[0], opts.speed[1]],
@@ -851,18 +837,19 @@ const VERSION = "1.11.1";
           headerAlpha: opts.headerAlpha, sidebarAlpha: opts.sidebarAlpha,
           themeMode: opts.themeMode, performanceMode: opts.performanceMode,
         });
-        if (key === "performanceMode") {
-          var hint = document.getElementById("ribbon-restart-hint");
-          if (!hint) {
-            hint = document.createElement("div");
-            hint.id = "ribbon-restart-hint";
-            hint.style.cssText = "color:#f0c674;font-size:11px;margin-top:6px;";
-            hint.textContent = T.perfReloadHint;
-            panel.appendChild(hint);
-          }
-        }
       };
       row.appendChild(lbl); row.appendChild(sel); panel.appendChild(row);
+    }
+
+    // Canvas-only mode leaves cards, header and sidebar to the active theme,
+    // so the transparency sliders have nothing to act on: grey them out.
+    function syncAlphaRows() {
+      var off = opts.themeMode === "canvas-only";
+      panel.querySelectorAll("input[data-key$='Alpha']").forEach(function (inp) {
+        inp.disabled = off;
+        inp.parentNode.style.opacity = off ? "0.4" : "1";
+        inp.parentNode.title = off ? T.themeModeCanvas : "";
+      });
     }
     addSelectRow(T.themeMode, "themeMode", [
       { value: "full", label: T.themeModeFull },
@@ -936,18 +923,6 @@ const VERSION = "1.11.1";
           headerAlpha: opts.headerAlpha, sidebarAlpha: opts.sidebarAlpha,
           themeMode: opts.themeMode, performanceMode: opts.performanceMode,
         });
-
-        if (s.restart) {
-          // Show restart hint
-          var hint = document.getElementById("ribbon-restart-hint");
-          if (!hint) {
-            hint = document.createElement("div");
-            hint.id = "ribbon-restart-hint";
-            hint.style.cssText = "color:#f90;font-size:11px;text-align:center;padding:2px 0;";
-            hint.textContent = T.refreshHint;
-            panel.appendChild(hint);
-          }
-        }
       };
 
       row.appendChild(lbl);
@@ -955,6 +930,7 @@ const VERSION = "1.11.1";
       row.appendChild(valSpan);
       panel.appendChild(row);
     });
+    syncAlphaRows();
 
     // Inject slider thumb styles for hue rainbow slider
     if (!document.getElementById("ha-canvas-ribbons-hue-style")) {
@@ -1192,15 +1168,21 @@ const VERSION = "1.11.1";
     btn.onclick = function () { buildGUI(opts, state); };
     document.body.appendChild(btn);
 
-    // URL param fallback: ?canvas-ribbons=settings opens GUI when button is hidden
-    if (getButtonPosition() === "hidden") {
+    // ?canvas-ribbons=settings opens the GUI (the way back when the button is
+    // hidden). Checked on load and on every HA navigation, so a dashboard
+    // button that navigates to "<view>?canvas-ribbons=settings" works in the
+    // Companion app, where the address bar cannot be edited.
+    function openFromUrl() {
       try {
         var params = new URLSearchParams(window.location.search);
-        if (params.get("canvas-ribbons") === "settings") {
-          setTimeout(function () { buildGUI(opts, state); }, 500);
-        }
+        if (params.get("canvas-ribbons") !== "settings") return;
+        var gui = document.getElementById("ha-canvas-ribbons-gui");
+        if (gui && gui.style.display !== "none") return;
+        setTimeout(function () { buildGUI(opts, state); }, 500);
       } catch (e) {}
     }
+    openFromUrl();
+    return openFromUrl;
   }
 
   // --- Main ---
@@ -1296,9 +1278,34 @@ const VERSION = "1.11.1";
     var rafId = null;
     var running = true;
 
+    // Bring the running animation in line with opts. Called every frame, so
+    // GUI sliders, presets and the auto-sun preset all apply without a reload.
+    var appliedSpeed = opts.speed[0] + "," + opts.speed[1];
+    var appliedPerf = effectivePerfMode(opts.performanceMode);
+    function syncWithOptions() {
+      var n = Math.max(1, Math.min(Math.round(opts.waves) || 1, 8));
+      while (waves.length < n) {
+        var w = new Wave(state);
+        for (var j = 0; j < Math.min(opts.width, 300); j++) w.update();
+        waves.push(w);
+      }
+      if (waves.length > n) waves.length = n;
+      var speedKey = opts.speed[0] + "," + opts.speed[1];
+      if (speedKey !== appliedSpeed) {
+        appliedSpeed = speedKey;
+        for (var q = 0; q < waves.length; q++) waves[q].setSpeed(opts.speed);
+      }
+      var perfNow = effectivePerfMode(opts.performanceMode);
+      if (perfNow !== appliedPerf) {
+        appliedPerf = perfNow;
+        resize();
+      }
+    }
+
     var frameSkip = 0;
     function render() {
       if (!running) return;
+      syncWithOptions();
       var perf = effectivePerfMode(opts.performanceMode);
       if (perf === "low") {
         frameSkip ^= 1;
@@ -1383,6 +1390,7 @@ const VERSION = "1.11.1";
       window.removeEventListener("resize", resize);
       window.removeEventListener("location-changed", onNavigate);
       window.removeEventListener("popstate", onNavigate);
+      window.removeEventListener("location-changed", openGuiFromUrl);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       var el = document.getElementById("ha-canvas-ribbons");
       if (el) el.remove();
@@ -1398,7 +1406,8 @@ const VERSION = "1.11.1";
     };
 
     // GUI toggle button
-    createToggleButton(opts, state);
+    var openGuiFromUrl = createToggleButton(opts, state);
+    window.addEventListener("location-changed", openGuiFromUrl);
 
     // --- Auto-sun polling ---
     var sunIntervalId = null;

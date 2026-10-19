@@ -13,6 +13,7 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 | Version | Type | Description |
 |---|---|---|
 | **1.x** | **Major** | **Single-file HACS plugin with canvas ribbon animation** |
+| 1.12.0 | Fix | Every slider applies live again: speed, wave count, shorter trail and performance mode no longer need a reload ([#7](https://github.com/jrx-code/hassio-canvas-ribbons/issues/7)); alpha sliders greyed out in canvas-only mode; `?canvas-ribbons=settings` also works on in-app navigation, e.g. from a dashboard button in the Companion app ([#8](https://github.com/jrx-code/hassio-canvas-ribbons/issues/8)) |
 | 1.11.1 | Fix | Repository renamed to `hassio-canvas-ribbons`: HACS path is now `/hacsfiles/hassio-canvas-ribbons/`, see *Moving from ha-canvas-ribbons* |
 | 1.11 | Fix | Theme mode canvas-only for Material You (#4); Firefox/low perf mode (DPR cap + frame skip) (#3) |
 | 1.10 | Minor | Configurable button position ([#1](https://github.com/jrx-code/hassio-canvas-ribbons/issues/1)) |
@@ -83,8 +84,8 @@ Click the floating button in the bottom-right corner to open the settings panel:
 |---|---|---|---|
 | Enable on panel | on/off | yes | Enable/disable ribbons per HA panel (stored per URL path) |
 | Theme override | full / canvas-only | yes | `canvas-only` leaves card/header/sidebar to the theme (fixes Material You) |
-| Performance | auto / high / low | reload | `low` caps DPR and skips frames; `auto` picks low on Firefox |
-| Waves | 1–8 | reload | Number of ribbon waves |
+| Performance | auto / high / low | yes | `low` caps DPR and skips frames; `auto` picks low on Firefox |
+| Waves | 1–8 | yes | Number of ribbon waves |
 | Trail width | 20–300 | yes | Length of ribbon trail |
 | Rotation | 0–360° | yes | Rotation angle |
 | Amplitude | 0.1–2.0 | yes | Wave amplitude |
@@ -98,6 +99,25 @@ Click the floating button in the bottom-right corner to open the settings panel:
 | Sidebar alpha | 0–1 | yes | Sidebar opacity (full theme mode only) |
 
 Settings are saved to `localStorage` and persist across page reloads. Click **Reset** to restore defaults.
+`localStorage` is per browser and per device: the Companion app on a phone keeps its own settings,
+including the button position.
+
+### Hidden button: opening the settings again
+
+With **Button** set to *Hidden*, add `?canvas-ribbons=settings` to any dashboard URL, e.g.
+`https://ha.example.com/lovelace/0?canvas-ribbons=settings`. In the Companion app, where the
+address cannot be edited, add a button card that navigates there:
+
+```yaml
+type: button
+name: Ribbons settings
+icon: mdi:palette
+tap_action:
+  action: navigate
+  navigation_path: /lovelace/0?canvas-ribbons=settings
+```
+
+Switching **Button** back to a corner position brings the floating button back.
 
 ## Advanced Configuration
 

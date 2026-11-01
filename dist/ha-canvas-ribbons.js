@@ -2,7 +2,7 @@
 // https://github.com/jrx-code/hassio-canvas-ribbons
 // Based on Boris Šehovac's CodePen (https://codepen.io/bsehovac/pen/LQVzxJ)
 
-const VERSION = "1.12.0";
+const VERSION = "1.12.1";
 
 (function () {
   "use strict";
@@ -425,6 +425,14 @@ const VERSION = "1.12.0";
       "  --ha-card-background: " + cA + " !important;\n" +
       "  --app-header-background-color: " + hA + " !important;\n" +
       "  --sidebar-background-color: " + sA + " !important;\n" +
+      // The header and sidebar are forced dark above, so their text has to be light too: with a light
+      // theme the theme's dark text sits on the dark header and the view tabs disappear.
+      "  --app-header-text-color: #e8eaed !important;\n" +
+      "  --app-header-selection-bar-color: #e8eaed !important;\n" +
+      "  --sidebar-text-color: #e8eaed !important;\n" +
+      "  --sidebar-icon-color: #c4c7cc !important;\n" +
+      "  --sidebar-selected-text-color: #ffffff !important;\n" +
+      "  --sidebar-selected-icon-color: #ffffff !important;\n" +
       "  --divider-color: rgba(255,255,255,0.08) !important;\n" +
       "}"
     );

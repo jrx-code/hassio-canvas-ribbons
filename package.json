@@ -1,10 +1,10 @@
 {
   "name": "hassio-canvas-ribbons",
-  "version": "1.12.1",
+  "version": "1.12.2",
   "description": "Animated canvas ribbon background for Home Assistant dashboards — HACS frontend plugin",
   "main": "canvas-ribbons.js",
   "scripts": {
-    "test": "node canvas-ribbons.test.js"
+    "test": "node canvas-ribbons.test.js && node theme.test.js"
   },
   "repository": {
     "type": "git",

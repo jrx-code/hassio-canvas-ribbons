@@ -13,6 +13,7 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 | Version | Type | Description |
 |---|---|---|
 | **1.x** | **Major** | **Single-file HACS plugin with canvas ribbon animation** |
+| 1.12.2 | Fix | Full theme mode switches every text token (primary, secondary, disabled, outline, input fill) to the dark-theme values when the active theme is a light one: until now only the header and the sidebar did, so cards, dialogs and lists showed the theme's dark text on the plugin's dark glass. The override follows theme switches without a reload |
 | 1.12.1 | Fix | Full theme mode also sets light header and sidebar text: with a light theme the dark header kept the theme's dark text, so the view tabs and the sidebar were unreadable |
 | 1.12.0 | Fix | Every slider applies live again: speed, wave count, shorter trail and performance mode no longer need a reload ([#7](https://github.com/jrx-code/hassio-canvas-ribbons/issues/7)); alpha sliders greyed out in canvas-only mode; `?canvas-ribbons=settings` also works on in-app navigation, e.g. from a dashboard button in the Companion app ([#8](https://github.com/jrx-code/hassio-canvas-ribbons/issues/8)) |
 | 1.11.1 | Fix | Repository renamed to `hassio-canvas-ribbons`: HACS path is now `/hacsfiles/hassio-canvas-ribbons/`, see *Moving from ha-canvas-ribbons* |

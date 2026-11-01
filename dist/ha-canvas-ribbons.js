@@ -2,7 +2,7 @@
 // https://github.com/jrx-code/hassio-canvas-ribbons
 // Based on Boris Šehovac's CodePen (https://codepen.io/bsehovac/pen/LQVzxJ)
 
-const VERSION = "1.12.1";
+const VERSION = "1.12.2";
 
 (function () {
   "use strict";
@@ -406,6 +406,33 @@ const VERSION = "1.12.1";
     return isFirefox() ? "low" : "high";
   }
 
+  // Parses #rgb, #rrggbb, #rrggbbaa, rgb() and rgba() into [r, g, b]; returns null for anything else.
+  function parseColor(str) {
+    var v = String(str || "").trim().toLowerCase();
+    var m = v.match(/^#([0-9a-f]{3,8})$/);
+    if (m) {
+      var h = m[1];
+      if (h.length === 3 || h.length === 4) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+      if (h.length < 6) return null;
+      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+    }
+    m = v.match(/^rgba?\(\s*([0-9.]+)[\s,]+([0-9.]+)[\s,]+([0-9.]+)/);
+    if (m) return [parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])];
+    return null;
+  }
+
+  // True when the active theme draws dark text, i.e. it is a light theme. The theme's variables live on <html>;
+  // this plugin overrides them on <home-assistant>, so reading <html> still returns the theme's own value.
+  function themeTextIsDark() {
+    try {
+      var c = parseColor(getComputedStyle(document.documentElement).getPropertyValue("--primary-text-color"));
+      if (!c) return false;
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] < 128;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function buildThemeCss(opts) {
     var base =
       "html, body { background: #000 !important; }\n" +
@@ -434,6 +461,16 @@ const VERSION = "1.12.1";
       "  --sidebar-selected-text-color: #ffffff !important;\n" +
       "  --sidebar-selected-icon-color: #ffffff !important;\n" +
       "  --divider-color: rgba(255,255,255,0.08) !important;\n" +
+      // The surfaces above are always dark glass. With a light theme every other piece of text (cards, dialogs, lists)
+      // would keep the theme's dark colour on that dark glass, so the text tokens switch to the dark-theme values too.
+      (themeTextIsDark()
+        ? "  --primary-text-color: #e1e1e1 !important;\n" +
+          "  --secondary-text-color: #9b9b9b !important;\n" +
+          "  --disabled-text-color: #6f6f6f !important;\n" +
+          "  --outline-color: rgba(225,225,225,0.12) !important;\n" +
+          "  --input-fill-color: rgba(255,255,255,0.05) !important;\n" +
+          "  color-scheme: dark;\n"
+        : "") +
       "}"
     );
   }
@@ -1223,10 +1260,23 @@ const VERSION = "1.12.1";
     var style = document.createElement("style");
     style.id = "ha-canvas-ribbons-style";
     function applyStyle() {
-      style.textContent = buildThemeCss(opts);
+      var css = buildThemeCss(opts);
+      if (style.textContent !== css) style.textContent = css;
     }
     applyStyle();
     document.head.appendChild(style);
+
+    // Switching the HA theme (light, dark, auto) rewrites the variables on <html>: rebuild the override so the text
+    // tokens follow. The observer watches <html> only, so changing this style tag cannot retrigger it.
+    var themeObserver = null;
+    var themeRaf = 0;
+    if (typeof MutationObserver !== "undefined") {
+      themeObserver = new MutationObserver(function () {
+        if (themeRaf) return;
+        themeRaf = requestAnimationFrame(function () { themeRaf = 0; applyStyle(); });
+      });
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class"] });
+    }
 
     // Canvas state
     var ctx = canvas.getContext("2d");
@@ -1400,6 +1450,7 @@ const VERSION = "1.12.1";
       window.removeEventListener("popstate", onNavigate);
       window.removeEventListener("location-changed", openGuiFromUrl);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (themeObserver) { themeObserver.disconnect(); themeObserver = null; }
       var el = document.getElementById("ha-canvas-ribbons");
       if (el) el.remove();
       var st = document.getElementById("ha-canvas-ribbons-style");

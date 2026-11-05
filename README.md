@@ -42,19 +42,21 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 - **Performance mode**: auto / high / low (auto uses low on Firefox)
 - Settings persisted to `localStorage`
 - Lightweight, no dependencies
-- HACS compatible
+- HACS and Marketplace compatible
 
 ## Installation
 
-### HACS (recommended)
+### HACS or Marketplace (recommended)
 
 [![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jrx-code&repository=hassio-canvas-ribbons&category=plugin)
 
-1. Open HACS and search for **Canvas Ribbons Background** (it is in the HACS default store, no custom repository needed)
+1. Open HACS, or the Marketplace on Home Assistant 2026.11+, and search for
+   **Canvas Ribbons Background** (it is in the default store, no custom repository needed)
 2. Download it
-3. Add resource in **Settings → Dashboards → Resources**:
-   - URL: `/hacsfiles/hassio-canvas-ribbons/ha-canvas-ribbons.js`
-   - Type: JavaScript Module
+3. Check the dashboard resource in **Settings → Dashboards → Resources** and add it if it is missing
+   (Type: JavaScript Module):
+   - Marketplace (2026.11+): `/local/community/hassio-canvas-ribbons/ha-canvas-ribbons.js`
+   - HACS (before 2026.11): `/hacsfiles/hassio-canvas-ribbons/ha-canvas-ribbons.js`, which keeps working after the upgrade
 4. Refresh browser (**Ctrl+Shift+R**)
 
 ### Moving from ha-canvas-ribbons

@@ -14,6 +14,7 @@ SHELL := /bin/bash
 test:
 	node canvas-ribbons.test.js
 	node theme.test.js
+	node animation-default.test.js
 
 # ---------------------------------------------------------------------------
 # push: main branch to both remotes. CI is GitHub Actions (.github/workflows/

@@ -13,6 +13,7 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 | Version | Type | Description |
 |---|---|---|
 | **1.x** | **Major** | **Single-file HACS plugin with canvas ribbon animation** |
+| 1.13.0 | Minor | Home Assistant-wide animation default with a per-device override ([#9](https://github.com/jrx-code/hassio-canvas-ribbons/issues/9)): turn the helper `input_boolean.canvas_ribbons` off and no device starts the canvas any more, not even on first load; a powerful device opts back in with **Animation on this device → On**. Devices that ask for reduced motion start with the animation off. Without the helper nothing changes |
 | 1.12.2 | Fix | Full theme mode switches every text token (primary, secondary, disabled, outline, input fill) to the dark-theme values when the active theme is a light one: until now only the header and the sidebar did, so cards, dialogs and lists showed the theme's dark text on the plugin's dark glass. The override follows theme switches without a reload |
 | 1.12.1 | Fix | Full theme mode also sets light header and sidebar text: with a light theme the dark header kept the theme's dark text, so the view tabs and the sidebar were unreadable |
 | 1.12.0 | Fix | Every slider applies live again: speed, wave count, shorter trail and performance mode no longer need a reload ([#7](https://github.com/jrx-code/hassio-canvas-ribbons/issues/7)); alpha sliders greyed out in canvas-only mode; `?canvas-ribbons=settings` also works on in-app navigation, e.g. from a dashboard button in the Companion app ([#8](https://github.com/jrx-code/hassio-canvas-ribbons/issues/8)) |
@@ -40,6 +41,7 @@ Based on `animation.79.canvas-ribbons` from [lovelace-bg-animation](https://gith
 - Configurable parameters (waves, speed, colors, saturation, brightness, transparency)
 - **Theme override**: full (cards/header/sidebar) or canvas-only (Material You compatible)
 - **Performance mode**: auto / high / low (auto uses low on Firefox)
+- **Home Assistant-wide on/off** with a per-device override, for weak wall tablets (see *Turning the animation off for all devices*)
 - Settings persisted to `localStorage`
 - Lightweight, no dependencies
 - HACS and Marketplace compatible
@@ -86,6 +88,7 @@ Click the floating button in the bottom-right corner to open the settings panel:
 
 | Parameter | Range | Live | Description |
 |---|---|---|---|
+| Animation on this device | HA default / on / off | reload | Overrides the Home Assistant-wide default on this device only (see below) |
 | Enable on panel | on/off | yes | Enable/disable ribbons per HA panel (stored per URL path) |
 | Theme override | full / canvas-only | yes | `canvas-only` leaves card/header/sidebar to the theme (fixes Material You) |
 | Performance | auto / high / low | yes | `low` caps DPR and skips frames; `auto` picks low on Firefox |
@@ -105,6 +108,38 @@ Click the floating button in the bottom-right corner to open the settings panel:
 Settings are saved to `localStorage` and persist across page reloads. Click **Reset** to restore defaults.
 `localStorage` is per browser and per device: the Companion app on a phone keeps its own settings,
 including the button position.
+
+### Turning the animation off for all devices
+
+Cheap wall tablets can struggle with the canvas, and may even crash while the dashboard loads, before the
+settings panel can be opened ([#9](https://github.com/jrx-code/hassio-canvas-ribbons/issues/9)). Make the
+animation opt-in instead:
+
+1. **Settings → Devices & services → Helpers → Create helper → Toggle**, name it `Canvas ribbons`
+   (entity id `input_boolean.canvas_ribbons`) and switch it **off**
+2. Reload the dashboards. Every device now starts without the canvas, the animation loop and the theme
+   override; only the settings button is shown
+3. On each device that is powerful enough, open the settings and set **Animation on this device** to **On**.
+   The page reloads with the ribbons
+
+The plugin waits until Home Assistant has loaded its states and reads the helper before it creates anything,
+so a device that should stay off never starts the renderer. **On** / **Off** on a device always wins over the
+helper; **Home Assistant default** follows it again. The choice is stored in this browser's `localStorage`
+(`ha-canvas-ribbons-device`), so it is per device and per Companion app, and **Reset** keeps it.
+
+What decides, first match wins:
+
+| Source | Scope | Value |
+|---|---|---|
+| **Animation on this device** in the settings | this device | on / off |
+| `window.canvasRibbonsConfig.enabled` | everywhere the snippet runs | `true` / `false` |
+| `input_boolean.canvas_ribbons` (or `canvasRibbonsConfig.enabledEntity`) | all devices | on / off |
+| Reduced motion requested by the OS or browser (`prefers-reduced-motion`) | this device | off |
+| Otherwise | | on, as in earlier versions |
+
+Without the helper nothing changes: the ribbons start as before. Switching the helper takes effect on the
+next dashboard load. On a device that is already off, add `?canvas-ribbons=settings` to the URL (or use the
+button card below) if the settings button is hidden.
 
 ### Hidden button: opening the settings again
 
@@ -143,18 +178,22 @@ You can also set config programmatically via `window.canvasRibbonsConfig`:
     sidebarAlpha: 0.8,
     themeMode: "full",           // or "canvas-only"
     performanceMode: "auto",     // or "high" / "low"
+    enabled: false,              // optional: default on/off for these clients (device setting still wins)
+    enabledEntity: "input_boolean.canvas_ribbons", // optional: helper that sets the HA-wide default
   };
 </script>
 ```
 
-Config priority: defaults → localStorage → `window.canvasRibbonsConfig`
+Config priority: defaults → localStorage → `window.canvasRibbonsConfig`.
+`enabled` is the exception: the per-device **Animation on this device** setting overrides it.
 
 ## How it works
 
-1. Injects a `<canvas>` element on `document.body` with `z-index: 0` and `pointer-events: none`
-2. Adds CSS custom properties for HA backgrounds (`full`) or only page background (`canvas-only`)
-3. Renders animated Bézier curves (ribbons) via `requestAnimationFrame`
-4. No iframes, no shadow DOM hacks — clean DOM injection
+1. Decides whether to animate on this device (device setting → `enabled` → helper → reduced motion); when off, only the settings button is added
+2. Injects a `<canvas>` element on `document.body` with `z-index: 0` and `pointer-events: none`
+3. Adds CSS custom properties for HA backgrounds (`full`) or only page background (`canvas-only`)
+4. Renders animated Bézier curves (ribbons) via `requestAnimationFrame`
+5. No iframes, no shadow DOM hacks — clean DOM injection
 
 ## Development
 
@@ -162,8 +201,8 @@ Config priority: defaults → localStorage → `window.canvasRibbonsConfig`
 # Install dependencies (for tests)
 npm install
 
-# Run tests (20 unit tests, jsdom)
-node canvas-ribbons.test.js
+# Run tests (jsdom)
+npm test
 
 # Generate screenshot
 node scripts/generate-screenshot.js

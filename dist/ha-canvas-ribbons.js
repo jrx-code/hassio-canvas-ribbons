@@ -2,7 +2,7 @@
 // https://github.com/jrx-code/hassio-canvas-ribbons
 // Based on Boris Šehovac's CodePen (https://codepen.io/bsehovac/pen/LQVzxJ)
 
-const VERSION = "1.12.2";
+const VERSION = "1.13.0";
 
 (function () {
   "use strict";
@@ -10,12 +10,20 @@ const VERSION = "1.12.2";
   const STORAGE_KEY = "ha-canvas-ribbons-config";
   const PANELS_KEY = "ha-canvas-ribbons-panels";
   const BUTTON_KEY = "ha-canvas-ribbons-button";
+  // This device's own animation choice: "on", "off", or absent = follow the Home Assistant-wide default.
+  const DEVICE_KEY = "ha-canvas-ribbons-device";
+  // Optional helper the admin creates to set the default for every device (issue #9).
+  const DEFAULT_ENTITY = "input_boolean.canvas_ribbons";
   const TAU = 2 * Math.PI;
 
   // --- i18n ---
   var TRANSLATIONS = {
     en: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animation on this device",
+      deviceAnimDefault: "Home Assistant default",
+      deviceAnimOn: "On",
+      deviceAnimOff: "Off",
       enablePanel: "Enabled on this panel",
       reset: "Reset",
       waves: "Waves",
@@ -57,6 +65,10 @@ const VERSION = "1.12.2";
     },
     pl: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animacja na tym urządzeniu",
+      deviceAnimDefault: "Domyślnie (Home Assistant)",
+      deviceAnimOn: "Włączona",
+      deviceAnimOff: "Wyłączona",
       enablePanel: "Włączone na tym panelu",
       reset: "Reset",
       waves: "Wstęgi",
@@ -98,6 +110,10 @@ const VERSION = "1.12.2";
     },
     de: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animation auf diesem Gerät",
+      deviceAnimDefault: "Home-Assistant-Standard",
+      deviceAnimOn: "An",
+      deviceAnimOff: "Aus",
       enablePanel: "Auf diesem Panel aktiviert",
       reset: "Zurücksetzen",
       waves: "Wellen",
@@ -139,6 +155,10 @@ const VERSION = "1.12.2";
     },
     es: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animación en este dispositivo",
+      deviceAnimDefault: "Predeterminado de Home Assistant",
+      deviceAnimOn: "Activada",
+      deviceAnimOff: "Desactivada",
       enablePanel: "Activado en este panel",
       reset: "Restablecer",
       waves: "Ondas",
@@ -180,6 +200,10 @@ const VERSION = "1.12.2";
     },
     ca: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animació en aquest dispositiu",
+      deviceAnimDefault: "Per defecte de Home Assistant",
+      deviceAnimOn: "Activada",
+      deviceAnimOff: "Desactivada",
       enablePanel: "Activat en aquest panell",
       reset: "Restablir",
       waves: "Ones",
@@ -221,6 +245,10 @@ const VERSION = "1.12.2";
     },
     cs: {
       title: "Canvas Ribbons",
+      deviceAnim: "Animace na tomto zařízení",
+      deviceAnimDefault: "Výchozí Home Assistant",
+      deviceAnimOn: "Zapnuto",
+      deviceAnimOff: "Vypnuto",
       enablePanel: "Povoleno na tomto panelu",
       reset: "Obnovit",
       waves: "Vlny",
@@ -558,6 +586,76 @@ const VERSION = "1.12.2";
     savePanelStates(states);
   }
 
+  // --- Animation on/off: Home Assistant-wide default + per-device override (issue #9) ---
+  // The decision is made before anything is drawn, so a device that should stay off never creates the canvas.
+  function getDeviceAnimation() {
+    try {
+      var v = localStorage.getItem(DEVICE_KEY);
+      return v === "on" || v === "off" ? v : "default";
+    } catch (e) { return "default"; }
+  }
+
+  function setDeviceAnimation(v) {
+    if (v === "on" || v === "off") localStorage.setItem(DEVICE_KEY, v);
+    else localStorage.removeItem(DEVICE_KEY);
+  }
+
+  function windowEnabled() {
+    var cfg = window.canvasRibbonsConfig;
+    return cfg && typeof cfg.enabled === "boolean" ? cfg.enabled : null;
+  }
+
+  function defaultEntityId() {
+    var cfg = window.canvasRibbonsConfig;
+    return cfg && typeof cfg.enabledEntity === "string" && cfg.enabledEntity.length > 0 ? cfg.enabledEntity : DEFAULT_ENTITY;
+  }
+
+  function prefersReducedMotion() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    } catch (e) { return false; }
+  }
+
+  // Home Assistant-wide default, ignoring this device's own choice:
+  // window.canvasRibbonsConfig.enabled > input_boolean.canvas_ribbons > prefers-reduced-motion > on.
+  function globalDefault(hass) {
+    var w = windowEnabled();
+    if (w !== null) return { enabled: w, source: "canvasRibbonsConfig.enabled" };
+    var id = defaultEntityId();
+    var s = hass && hass.states ? hass.states[id] : null;
+    if (s && (s.state === "on" || s.state === "off")) return { enabled: s.state === "on", source: id };
+    if (prefersReducedMotion()) return { enabled: false, source: "prefers-reduced-motion" };
+    return { enabled: true, source: "default" };
+  }
+
+  // This device's choice always wins, so a powerful device can turn the animation back on.
+  function animationDecision(hass) {
+    var d = getDeviceAnimation();
+    if (d !== "default") return { enabled: d === "on", source: "this device" };
+    return globalDefault(hass);
+  }
+
+  function currentHass() {
+    try {
+      var ha = document.querySelector("home-assistant");
+      return ha && ha.hass && ha.hass.states ? ha.hass : null;
+    } catch (e) { return null; }
+  }
+
+  // Calls cb(hass) once the decision can be made. Waits for hass only when the default entity could matter;
+  // outside the HA frontend (no <home-assistant>) it answers at once. Polling is cheap and draws nothing.
+  function whenDecidable(cb) {
+    if (getDeviceAnimation() !== "default" || windowEnabled() !== null) { cb(currentHass()); return; }
+    var tries = 0;
+    (function poll() {
+      if (!document.querySelector("home-assistant")) { cb(null); return; }
+      var hass = currentHass();
+      if (hass) { cb(hass); return; }
+      tries++;
+      setTimeout(poll, tries < 100 ? 100 : 1000);
+    })();
+  }
+
   // --- Auto-sun ---
   var SUN_KEY = "ha-canvas-ribbons-sun";
 
@@ -636,6 +734,37 @@ const VERSION = "1.12.2";
     titleBar.appendChild(title);
     titleBar.appendChild(closeBtn);
     panel.appendChild(titleBar);
+
+    // Animation on this device: follow the HA-wide default, or force on/off here. Applied with a reload, so
+    // turning it on starts the canvas cleanly and turning it off releases it completely.
+    var deviceRow = document.createElement("div");
+    deviceRow.style.cssText = "display:flex;align-items:center;gap:8px;padding:4px 0 6px 0;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:4px;";
+    var deviceLbl = document.createElement("label");
+    deviceLbl.textContent = T.deviceAnim;
+    deviceLbl.style.cssText = "min-width:90px;color:#aaa;font-size:11px;";
+    var deviceSel = document.createElement("select");
+    deviceSel.id = "ha-canvas-ribbons-device";
+    deviceSel.style.cssText = "flex:1;background:#1a1a22;color:#eee;border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 6px;font-size:11px;cursor:pointer;";
+    var gDefault = globalDefault(currentHass());
+    var curDevice = getDeviceAnimation();
+    [
+      { value: "default", label: T.deviceAnimDefault + " (" + (gDefault.enabled ? T.deviceAnimOn : T.deviceAnimOff) + ")" },
+      { value: "on", label: T.deviceAnimOn },
+      { value: "off", label: T.deviceAnimOff },
+    ].forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.value === curDevice) opt.selected = true;
+      deviceSel.appendChild(opt);
+    });
+    deviceSel.onchange = function () {
+      setDeviceAnimation(deviceSel.value);
+      location.reload();
+    };
+    deviceRow.appendChild(deviceLbl);
+    deviceRow.appendChild(deviceSel);
+    panel.appendChild(deviceRow);
 
     // Per-panel toggle
     var panelPath = getCurrentPanel();
@@ -1231,12 +1360,7 @@ const VERSION = "1.12.2";
   }
 
   // --- Main ---
-  function createRibbonCanvas() {
-    if (document.getElementById("ha-canvas-ribbons")) {
-      console.info("[ha-canvas-ribbons] v" + VERSION + " already injected");
-      return;
-    }
-
+  function buildOptions() {
     // Merge: defaults < localStorage < window config (all validated)
     var saved = loadConfig();
     var windowCfg = sanitizeConfig(window.canvasRibbonsConfig || {});
@@ -1245,6 +1369,45 @@ const VERSION = "1.12.2";
     // Ensure arrays are proper
     if (!Array.isArray(opts.speed)) opts.speed = [DEFAULTS.speed[0], DEFAULTS.speed[1]];
     if (!Array.isArray(opts.hue)) opts.hue = [DEFAULTS.hue[0], DEFAULTS.hue[1]];
+    return opts;
+  }
+
+  function isInjected() {
+    return !!(document.getElementById("ha-canvas-ribbons") || document.getElementById("ha-canvas-ribbons-toggle"));
+  }
+
+  // Animation off on this device: no canvas, no theme override, no animation loop. Only the settings button
+  // (and ?canvas-ribbons=settings) stays, so the animation can be turned on for this device.
+  function createDisabled(decision) {
+    var opts = buildOptions();
+    var openGuiFromUrl = createToggleButton(opts, null);
+    window.addEventListener("location-changed", openGuiFromUrl);
+    window._haCanvasRibbonsDestroy = function () {
+      window.removeEventListener("location-changed", openGuiFromUrl);
+      ["ha-canvas-ribbons-gui", "ha-canvas-ribbons-toggle", "ha-canvas-ribbons-hue-style"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.remove();
+      });
+      delete window._haCanvasRibbonsDestroy;
+    };
+    console.info("[ha-canvas-ribbons] v" + VERSION + " animation off on this device (" + decision.source + ")");
+  }
+
+  function boot() {
+    if (isInjected()) {
+      console.info("[ha-canvas-ribbons] v" + VERSION + " already injected");
+      return;
+    }
+    whenDecidable(function (hass) {
+      if (isInjected()) return;
+      var decision = animationDecision(hass);
+      if (decision.enabled) createRibbonCanvas();
+      else createDisabled(decision);
+    });
+  }
+
+  function createRibbonCanvas() {
+    var opts = buildOptions();
 
     // Container
     var container = document.createElement("div");
@@ -1504,8 +1667,8 @@ const VERSION = "1.12.2";
   }
 
   if (document.body) {
-    createRibbonCanvas();
+    boot();
   } else {
-    document.addEventListener("DOMContentLoaded", createRibbonCanvas);
+    document.addEventListener("DOMContentLoaded", boot);
   }
 })();

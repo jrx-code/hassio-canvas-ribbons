@@ -14,12 +14,13 @@ SHELL := /bin/bash
 test:
 	node canvas-ribbons.test.js
 	node theme.test.js
+	node animation-default.test.js
 
 # ---------------------------------------------------------------------------
-# push: main branch to both remotes. CI is GitHub Actions (.github/workflows/
-# validate.yml, HACS validation) — there is no local pipeline to poll for.
-# GitLab CE (git.example.com) is retired; Forgejo (origin) has no Actions
-# runner configured for this repo.
+# push: main branch to both remotes. CI is .github/workflows/validate.yml
+# (HACS validation). GitLab CE (git.example.com) is retired. Forgejo (origin)
+# has an Actions runner that also picks up .github/workflows; the HACS job
+# only does real work on GitHub.
 # ---------------------------------------------------------------------------
 .PHONY: push
 push:

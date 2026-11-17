@@ -9,11 +9,30 @@ on:
 
 permissions: {}
 
+# GitHub only: the Forgejo runner also picks up .github/workflows when a repo has
+# no .forgejo/workflows, and the hassfest/HACS actions do not run there.
+
 jobs:
   validate-hacs:
+    if: github.server_url == 'https://github.com'
     runs-on: "ubuntu-latest"
     steps:
       - name: HACS validation
         uses: "hacs/action@main"
         with:
           category: "plugin"
+
+  test:
+    name: Tests
+    if: github.server_url == 'https://github.com'
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm test
